@@ -13,16 +13,25 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
     // Errors
     error Raffle__NotEnoughEtherToEnterRaffle();
+    error Raffle__Not_Ready_To_Start();
 
     // State variables
+    uint256 constant NUM_WORDS = 2;
+    uint256 constant REQUEST_CONFIRMATIONS = 3;
     uint256 private immutable i_entranceFee;
+    uint256 private immutable i_subscriptionId;
+    bytes32 private immutable i_keyHash;
+    uint256 private immutable i_callbackGasLimit;
     address[] private s_raffleParticipants; 
     mapping(address => uint256) private s_participantToAmount;
 
     // Events
 
-    constructor(uint256 entranceFee, address vrfCoordinatorAddress) VRFConsumerBaseV2Plus(vrfCoordinatorAddress) {
-        i_entranceFee = entranceFee; 
+    constructor(uint256 _entranceFee, address vrfCoordinatorAddress, uint256 _subscriptionId, bytes32 _keyHash, uint256 _callbackGasLimit) VRFConsumerBaseV2Plus(vrfCoordinatorAddress) {
+        i_entranceFee = _entranceFee; 
+        i_subscriptionId = _subscriptionId; 
+        i_keyHash = _keyHash;
+        i_callbackGasLimit = _callbackGasLimit;
     }
 
     /**
@@ -40,13 +49,43 @@ contract Raffle is VRFConsumerBaseV2Plus {
         s_participantToAmount[msg.sender] += msg.value;
     }
 
-    function requestRandomNumber() public {
-        uint256 requestId = s_vrfCoordinator.requestRandomWords(VRFV2PlusClient.RandomWordsRequest({
-            keyHash: 0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae,
-            subId: 18541826859728935111278688522415752663091092770622187897088624603391258799582,
-            requestConfirmations: 3,
-            callbackGasLimit: 100000,
-            numWords: 2,
+    /**
+     * @notice Function to start the lottery
+     * @dev This function checks if there are at least two players in the raffle and if the contract has a balance before starting the lottery.
+     * It requests a random number from Chainlink VRF and emits an event with the request ID.
+     * @custom:require At least two players must be in the raffle.
+     * @custom:require The contract must have a positive balance.
+     * @custom:revert Raffle__Not_Ready_To_Start if the conditions are not met.
+     */
+    function runLottery() external {
+        uint256 hasAtleastTwoPlayersInRaffle = s_raffleParticipants.length > 1;
+        uint256 contractHasSomeBalance = address(this).balance > 0;
+
+        if(!hasAtleastTwoPlayersInRaffle || !contractHasSomeBalance) {
+            revert Raffle__Not_Ready_To_Start();
+        }
+
+        // Request chainlink vrf for random number
+        uint256 reqId = _requestRandomNumber();
+
+        // Push an event with reqId
+
+    }
+
+
+
+    /**
+     * @notice Internal function to request a random number from the VRF Coordinator.
+     * @dev This function uses the VRFV2PlusClient to request random words.
+     * @return requestId The ID of the request for random words.
+     */
+    function _requestRandomNumber() internal returns(uint256 requestId) {
+        requestId = s_vrfCoordinator.requestRandomWords(VRFV2PlusClient.RandomWordsRequest({
+            keyHash: i_keyHash, //0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae
+            subId: i_subscriptionId,
+            requestConfirmations: REQUEST_CONFIRMATIONS,
+            callbackGasLimit: i_callbackGasLimit, // 100000
+            numWords: NUM_WORDS,
             extraArgs: ""
         })); 
     }
