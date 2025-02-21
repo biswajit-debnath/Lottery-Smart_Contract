@@ -19,7 +19,7 @@ contract HelperConfig is CodeConstants, Script {
         address vrfCoordinatorAddress;
         uint256 subId;
         bytes32 keyHash; 
-        uint256 callbackGasLimit;
+        uint32 callbackGasLimit;
     }
 
 
@@ -75,7 +75,7 @@ contract HelperConfig is CodeConstants, Script {
 
         // Return the vrfCoordinator address
         localChainNetworkConfig = NetworkConfig({
-            vrfCoordinator: address(vrfCoordinator),
+            vrfCoordinatorAddress: address(vrfCoordinator),
             subId: subId,
             keyHash: 0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c,
             callbackGasLimit: 500000

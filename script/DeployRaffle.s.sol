@@ -5,6 +5,7 @@ pragma solidity ^0.8.28;
 import {Script} from "forge-std/Script.sol";
 import {Raffle} from "../src/Raffle.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
+import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol"; 
 
 contract DeployRaffle is Script{
     
@@ -18,7 +19,7 @@ contract DeployRaffle is Script{
 
         // Add raffle as consumer to the vrfCoordinator contract
         vm.startBroadcast();
-        config.vrfCoordinator.addConsumer(address(raffle));
+        VRFCoordinatorV2_5Mock(config.vrfCoordinatorAddress).addConsumer(config.subId, address(raffle));
         vm.stopBroadcast();
 
         return (raffle, helperConfig);

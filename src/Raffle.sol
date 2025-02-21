@@ -17,21 +17,21 @@ contract Raffle is VRFConsumerBaseV2Plus {
     error Raffle__Winner_MoneyTransfer_Failed();
 
     // State variables
-    uint256 constant NUM_WORDS = 2;
-    uint256 constant REQUEST_CONFIRMATIONS = 3;
+    uint32 constant NUM_WORDS = 2;
+    uint16 constant REQUEST_CONFIRMATIONS = 3;
     uint256 private immutable i_entranceFee;
     uint256 private immutable i_subscriptionId;
     bytes32 private immutable i_keyHash;
-    uint256 private immutable i_callbackGasLimit;
-    address[] private payable s_raffleParticipants; 
+    uint32 private immutable i_callbackGasLimit;
+    address[] private s_raffleParticipants; 
     mapping(address => uint256) private s_participantToAmount;
-    address lastWinnerAddress private;
-    uint256 lastWinnerPrizeAmount;
+    address private lastWinnerAddress;
+    uint256 private lastWinnerPrizeAmount;
 
     
     // Events
 
-    constructor(uint256 _entranceFee, address vrfCoordinatorAddress, uint256 _subscriptionId, bytes32 _keyHash, uint256 _callbackGasLimit) VRFConsumerBaseV2Plus(vrfCoordinatorAddress) {
+    constructor(uint256 _entranceFee, address vrfCoordinatorAddress, uint256 _subscriptionId, bytes32 _keyHash, uint32 _callbackGasLimit) VRFConsumerBaseV2Plus(vrfCoordinatorAddress) {
         i_entranceFee = _entranceFee; 
         i_subscriptionId = _subscriptionId; 
         i_keyHash = _keyHash;
@@ -65,8 +65,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * @custom:revert Raffle__Not_Ready_To_Start if the conditions are not met.
      */
     function runLottery() external {
-        uint256 hasAtleastTwoPlayersInRaffle = s_raffleParticipants.length > 1;
-        uint256 contractHasSomeBalance = address(this).balance > 0;
+        bool hasAtleastTwoPlayersInRaffle = s_raffleParticipants.length > 1;
+        bool contractHasSomeBalance = address(this).balance > 0;
 
         if(!hasAtleastTwoPlayersInRaffle || !contractHasSomeBalance) {
             revert Raffle__Not_Ready_To_Start();
@@ -127,9 +127,12 @@ contract Raffle is VRFConsumerBaseV2Plus {
         lastWinnerAddress = winnerAddress;
         lastWinnerPrizeAmount = prizeAmount;
         s_raffleParticipants = new address[](0);
-        delete s_participantToAmount;
+        // clear the mapping s_participantToAmount;
+        for (uint256 i = 0; i < s_raffleParticipants.length; i++) {
+            delete s_participantToAmount[s_raffleParticipants[i]];
+        }
 
-        (bool success,) = winnerAddress.call{value: prizeAmount}("");
+        (bool success,) = payable(winnerAddress).call{value: prizeAmount}("");
         if(!success) {
             revert Raffle__Winner_MoneyTransfer_Failed();
         }
