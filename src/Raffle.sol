@@ -11,12 +11,20 @@ pragma solidity ^0.8.28;
  */
 contract Raffle is VRFConsumerBaseV2Plus {
 
-    // Errors
+    /* Type declarations */
+    enum RaffleState {
+        OPEN,
+        CALCULATING
+    }
+
+
+    /* Errors */
     error Raffle__NotEnoughEtherToEnterRaffle();
     error Raffle__Not_Ready_To_Start();
     error Raffle__Winner_MoneyTransfer_Failed();
+    error Raffle_RaffleNotOpen();
 
-    // State variables
+    /* State variables */
     uint32 constant NUM_WORDS = 2;
     uint16 constant REQUEST_CONFIRMATIONS = 3;
     uint256 private immutable i_entranceFee;
@@ -27,15 +35,19 @@ contract Raffle is VRFConsumerBaseV2Plus {
     mapping(address => uint256) private s_participantToAmount;
     address private lastWinnerAddress;
     uint256 private lastWinnerPrizeAmount;
+    RaffleState private s_raffleState;
 
     
-    // Events
+    /* Events */
+    event RandomNumberRequested(uint256 indexed reqId);
+    event winnerPicked(address indexed winnderAddress);
 
     constructor(uint256 _entranceFee, address vrfCoordinatorAddress, uint256 _subscriptionId, bytes32 _keyHash, uint32 _callbackGasLimit) VRFConsumerBaseV2Plus(vrfCoordinatorAddress) {
         i_entranceFee = _entranceFee; 
         i_subscriptionId = _subscriptionId; 
         i_keyHash = _keyHash;
         i_callbackGasLimit = _callbackGasLimit;
+        s_raffleState = RaffleState.OPEN;
     }
 
 
@@ -51,8 +63,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
             revert Raffle__NotEnoughEtherToEnterRaffle();
         }
 
+        if(s_raffleState != RaffleState.OPEN) {
+            revert Raffle_RaffleNotOpen();
+        }
+
         // Effect: Add the user to the list of participants
-        s_raffleParticipants.push(msg.sender);
+        // If user has already entered earlier don't add the user to the participants list
+        if(s_participantToAmount[msg.sender] == 0) {
+            s_raffleParticipants.push(msg.sender);
+        }
         s_participantToAmount[msg.sender] += msg.value;
     }
 
@@ -67,15 +86,19 @@ contract Raffle is VRFConsumerBaseV2Plus {
     function runLottery() external {
         bool hasAtleastTwoPlayersInRaffle = s_raffleParticipants.length > 1;
         bool contractHasSomeBalance = address(this).balance > 0;
+        bool raffleIsOpen = s_raffleState == RaffleState.OPEN;
 
-        if(!hasAtleastTwoPlayersInRaffle || !contractHasSomeBalance) {
+        if(!hasAtleastTwoPlayersInRaffle || !contractHasSomeBalance || !raffleIsOpen) {
             revert Raffle__Not_Ready_To_Start();
         }
+
+        s_raffleState = RaffleState.CALCULATING;
 
         // Request chainlink vrf for random number
         uint256 reqId = _requestRandomNumber();
 
         // Push an event with reqId
+        emit RandomNumberRequested(reqId);
 
     }
 
@@ -92,10 +115,10 @@ contract Raffle is VRFConsumerBaseV2Plus {
      */
     function _requestRandomNumber() internal returns(uint256 requestId) {
         requestId = s_vrfCoordinator.requestRandomWords(VRFV2PlusClient.RandomWordsRequest({
-            keyHash: i_keyHash, //0x787d74caea10b2b357790d5b5247c2f63d1d91572a9846f780606e4d953677ae
+            keyHash: i_keyHash,
             subId: i_subscriptionId,
             requestConfirmations: REQUEST_CONFIRMATIONS,
-            callbackGasLimit: i_callbackGasLimit, // 100000
+            callbackGasLimit: i_callbackGasLimit, 
             numWords: NUM_WORDS,
             extraArgs: ""
         })); 
@@ -127,6 +150,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
         lastWinnerAddress = winnerAddress;
         lastWinnerPrizeAmount = prizeAmount;
         s_raffleParticipants = new address[](0);
+        s_raffleState = RaffleState.OPEN;
         // clear the mapping s_participantToAmount;
         for (uint256 i = 0; i < s_raffleParticipants.length; i++) {
             delete s_participantToAmount[s_raffleParticipants[i]];
@@ -137,9 +161,25 @@ contract Raffle is VRFConsumerBaseV2Plus {
             revert Raffle__Winner_MoneyTransfer_Failed();
         }
 
+        emit winnerPicked(winnerAddress);
+
     }
 
     
+
+    /* Getter Functions */
+
+    function getEntranceFeeAmountInEth() external view returns(uint256) {
+        return i_entranceFee;
+    }
+
+    function getAllCurrentPerticipantsOfLottery() external view returns(address[] memory) {
+        return s_raffleParticipants;
+    }
+
+    function getAmountInvestedByUser(address userAddress) external view returns(uint256) {
+        return s_participantToAmount[userAddress];
+    } 
 
     
 }

@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.28;
 
-import {Script} from "forge-std/Script.sol";
+import {Script, console} from "forge-std/Script.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol"; 
 
 abstract contract CodeConstants {
-    uint96 public MOCK_BASE_FEE = 0.25 ether;
+    uint96 public MOCK_BASE_FEE = 25e16;
     uint96 public MOCK_GAS_PRICE_LINK = 1e9;
     // LINK / ETH price
     int256 public MOCK_WEI_PER_UINT_LINK = 4e15;
@@ -59,11 +59,13 @@ contract HelperConfig is CodeConstants, Script {
     // Funtion to get networkConfig for local anvil chain
     function getLocalAnvilNetworkConfig() internal returns(NetworkConfig memory) {
 
-
+        
+        vm.roll(100);
         // Deploy a mock vrf coordinator
         vm.startBroadcast();
         VRFCoordinatorV2_5Mock vrfCoordinator = new VRFCoordinatorV2_5Mock(MOCK_BASE_FEE, MOCK_GAS_PRICE_LINK, MOCK_WEI_PER_UINT_LINK);
-
+        console.log("block number::::", block.number);
+        
         // Create subscription
         uint256 subId = vrfCoordinator.createSubscription();
 
