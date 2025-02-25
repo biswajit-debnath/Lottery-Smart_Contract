@@ -22,6 +22,7 @@ contract RaffleTest is Test {
     }
 
 
+    /* Enter Raffle Function testing */
     function testRevertOnSendingNotEnoughEth() external {
         vm.prank(testUser);
         vm.expectRevert(Raffle.Raffle__NotEnoughEtherToEnterRaffle.selector);
@@ -91,7 +92,69 @@ contract RaffleTest is Test {
 
         raffle.runLottery();
 
+        address testUser3 = makeAddr("TestUser3");
+        vm.deal(testUser3, 1 ether);
+        vm.prank(testUser3);
+        vm.expectRevert(Raffle.Raffle_RaffleNotOpen.selector);
+        raffle.enterRaffle{value: amountToInvest}();
     }
+
+
+
+    /* Run Lottery Function testing */
+    function testRevertRunLotteryIfNoParticipants() external {
+        vm.expectRevert(Raffle.Raffle__Not_Ready_To_Start.selector);
+        raffle.runLottery();
+    }
+    
+    function testRevertRunLotteryIfOnlyOneParticipant() external {
+        uint256 amountToInvest = raffle.getEntranceFeeAmountInEth();
+        vm.deal(testUser, 1 ether);
+        vm.prank(testUser);
+        raffle.enterRaffle{value: amountToInvest}();
+
+        vm.expectRevert(Raffle.Raffle__Not_Ready_To_Start.selector);
+        raffle.runLottery();
+    }
+
+    function testRaffleStateUpdatedToCalculatingAfterRunLottery() external {
+        uint256 amountToInvest = raffle.getEntranceFeeAmountInEth();
+        vm.deal(testUser, 1 ether);
+        vm.prank(testUser);
+        raffle.enterRaffle{value: amountToInvest}();
+
+        address testUser2 = makeAddr("TestUser2");
+        vm.deal(testUser2, 1 ether);
+        vm.prank(testUser2);
+        raffle.enterRaffle{value: amountToInvest}();
+
+        raffle.runLottery();
+
+        assertEq(raffle.getCurrentStateOfRaffle(), uint256(Raffle.RaffleState.CALCULATING)); // 1 represents Calculating state
+    }
+
+    function testRevertRunLotteryIfRaffleNotOpen() external {
+        uint256 amountToInvest = raffle.getEntranceFeeAmountInEth();
+        vm.deal(testUser, 1 ether);
+        vm.prank(testUser);
+        raffle.enterRaffle{value: amountToInvest}();
+
+        address testUser2 = makeAddr("TestUser2");
+        vm.deal(testUser2, 1 ether);
+        vm.prank(testUser2);
+        raffle.enterRaffle{value: amountToInvest}();
+
+        raffle.runLottery();
+
+        vm.expectRevert(Raffle.Raffle__Not_Ready_To_Start.selector);
+        raffle.runLottery();
+    }
+
+    
+
+
+
+    
 
 }
 

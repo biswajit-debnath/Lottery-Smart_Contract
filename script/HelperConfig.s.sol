@@ -58,13 +58,10 @@ contract HelperConfig is CodeConstants, Script {
 
     // Funtion to get networkConfig for local anvil chain
     function getLocalAnvilNetworkConfig() internal returns(NetworkConfig memory) {
-
-        
-        vm.roll(100);
+    
         // Deploy a mock vrf coordinator
         vm.startBroadcast();
         VRFCoordinatorV2_5Mock vrfCoordinator = new VRFCoordinatorV2_5Mock(MOCK_BASE_FEE, MOCK_GAS_PRICE_LINK, MOCK_WEI_PER_UINT_LINK);
-        console.log("block number::::", block.number);
         
         // Create subscription
         uint256 subId = vrfCoordinator.createSubscription();

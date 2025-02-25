@@ -51,7 +51,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     }
 
 
-    // External Functions:
+    /* External Functions */
 
     /**
      * @notice This function allows users to enter the raffle by paying a certain amount of Ether.
@@ -83,7 +83,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * @custom:require The contract must have a positive balance.
      * @custom:revert Raffle__Not_Ready_To_Start if the conditions are not met.
      */
-    function runLottery() external {
+    function runLottery() external returns(uint256){
         bool hasAtleastTwoPlayersInRaffle = s_raffleParticipants.length > 1;
         bool contractHasSomeBalance = address(this).balance > 0;
         bool raffleIsOpen = s_raffleState == RaffleState.OPEN;
@@ -100,13 +100,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // Push an event with reqId
         emit RandomNumberRequested(reqId);
 
+        return reqId;
+
     }
 
     
 
 
     
-    // Internal Functions:
+    /* Internal Functions */
 
     /**
      * @notice Internal function to request a random number from the VRF Coordinator.
@@ -180,6 +182,10 @@ contract Raffle is VRFConsumerBaseV2Plus {
     function getAmountInvestedByUser(address userAddress) external view returns(uint256) {
         return s_participantToAmount[userAddress];
     } 
+
+    function getCurrentStateOfRaffle() external view returns(uint256) {
+        return uint256(s_raffleState);
+    }
 
     
 }
