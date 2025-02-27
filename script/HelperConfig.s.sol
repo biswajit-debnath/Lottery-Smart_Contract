@@ -9,7 +9,7 @@ abstract contract CodeConstants {
     uint96 public MOCK_BASE_FEE = 25e16;
     uint96 public MOCK_GAS_PRICE_LINK = 1e9;
     // LINK / ETH price
-    int256 public MOCK_WEI_PER_UINT_LINK = 4e15;
+    int256 public MOCK_WEI_PER_UINT_LINK = 4e17;
 }
 
 contract HelperConfig is CodeConstants, Script {
@@ -58,6 +58,10 @@ contract HelperConfig is CodeConstants, Script {
 
     // Funtion to get networkConfig for local anvil chain
     function getLocalAnvilNetworkConfig() internal returns(NetworkConfig memory) {
+
+        if(localChainNetworkConfig.vrfCoordinatorAddress != address(0)) {
+            return localChainNetworkConfig;
+        }
     
         // Deploy a mock vrf coordinator
         vm.startBroadcast();

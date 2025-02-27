@@ -15,10 +15,10 @@ contract DeployRaffle is Script{
         HelperConfig helperConfig = new HelperConfig();
         HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
 
+        vm.startBroadcast();
         Raffle raffle = new Raffle(ENTRANCE_FEE, config.vrfCoordinatorAddress, config.subId, config.keyHash, config.callbackGasLimit);
 
         // Add raffle as consumer to the vrfCoordinator contract
-        vm.startBroadcast();
         VRFCoordinatorV2_5Mock(config.vrfCoordinatorAddress).addConsumer(config.subId, address(raffle));
         vm.stopBroadcast();
 
