@@ -8,6 +8,7 @@ import {Raffle} from "../../src/Raffle.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {DeployRaffle} from "../../script/DeployRaffle.s.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol"; 
+import {MaliciousContract} from "../mock/MaliciousContract.sol";
 
 
 contract RaffleTest is Test {
@@ -200,8 +201,79 @@ contract RaffleTest is Test {
 
     /* _pickWinnerAndSendPrize Function testing */
 
-    function testWinnerSelectionLogicBasedOnRandomNumber() external {
+    function testWinnerSelectionLogicAndStateUpdates() external {
+       uint256 amountToInvest = raffle.getEntranceFeeAmountInEth();
+    
+        
+        // Users enter raffle
+        vm.deal(testUser, 1 ether);
+        vm.prank(testUser);
+        raffle.enterRaffle{value: amountToInvest}();
+
+        address testUser2 = makeAddr("TestUser2");
+        vm.deal(testUser2, 1 ether);
+        vm.prank(testUser2);
+        raffle.enterRaffle{value: amountToInvest}();
+
+        // Setup initial balances
+        uint256 initialBalanceUser1 = testUser.balance;
+        uint256 initialBalanceUser2 = testUser2.balance;
+
+        // Total prize amount
+        uint256 totalPrize = amountToInvest * 2;
+
+        uint256 reqId = raffle.runLottery();
+
+        // Before fulfillment checks
+        assertEq(address(raffle).balance, totalPrize);
+        assertEq(raffle.getCurrentStateOfRaffle(), uint256(Raffle.RaffleState.CALCULATING));
+
+        // Fulfill random words
+        VRFCoordinatorV2_5Mock(networkConfig.vrfCoordinatorAddress).fulfillRandomWords(
+            reqId, 
+            address(raffle)
+        );
+
+        // Check raffle state is open
+        assertEq(raffle.getCurrentStateOfRaffle(), uint256(Raffle.RaffleState.OPEN));
+
+        // Check if contract balance is 0 after winner selection
+        assertEq(address(raffle).balance, 0);
+
+        // Check if s_raffleParticipants is cleared
+        assertEq(raffle.getAllCurrentPerticipantsOfLottery().length, 0);
+
+        // Check if s_participantToAmount is cleared for both users
+        assertEq(raffle.getAmountInvestedByUser(testUser), 0);
+        assertEq(raffle.getAmountInvestedByUser(testUser2), 0);
+
+        // Check if one of the users got the prize (their balance increased by total prize amount)
+        uint256 finalBalanceUser1 = testUser.balance;
+        uint256 finalBalanceUser2 = testUser2.balance;
+        
+        bool user1Won = finalBalanceUser1 > initialBalanceUser1;
+        bool user2Won = finalBalanceUser2 > initialBalanceUser2;
+        
+        assertTrue(user1Won || user2Won); // One user must have won
+        assertTrue(!(user1Won && user2Won)); // Both users cannot win
+
+        // If user1 won, check they received the total prize
+        if (user1Won) {
+            assertEq(finalBalanceUser1, initialBalanceUser1 + totalPrize);
+            assertEq(finalBalanceUser2, initialBalanceUser2);
+        } else {
+            // If user2 won, check they received the total prize
+            assertEq(finalBalanceUser2, initialBalanceUser2 + totalPrize);
+            assertEq(finalBalanceUser1, initialBalanceUser1);
+        }
+        
+
+    }
+
+    function testCorrectWinnerAddressEmittedInEvent() external {
         uint256 amountToInvest = raffle.getEntranceFeeAmountInEth();
+        
+        // Setup users
         vm.deal(testUser, 1 ether);
         vm.prank(testUser);
         raffle.enterRaffle{value: amountToInvest}();
@@ -212,16 +284,107 @@ contract RaffleTest is Test {
         raffle.enterRaffle{value: amountToInvest}();
 
         uint256 reqId = raffle.runLottery();
-        uint256 subIdFromRaffle = raffle.getSubscriptionId();
 
-        // console.log("Subsciption id::", networkConfig.subId);
-        // console.log("Subscription Id from rafle: ", subIdFromRaffle);
-        // Act as VRFCoordinator and call fulfillRandomWords
-        VRFCoordinatorV2_5Mock(networkConfig.vrfCoordinatorAddress).fulfillRandomWords(reqId, address(raffle));
+        // Create predetermined random number to select testUser2 as winner
+        uint256[] memory randomWords = new uint256[](2);
+        randomWords[0] = 1;
+        randomWords[1] = 1; // This will select testUser2
+
+        // Expect winnerPicked event with specific winner address
+        vm.expectEmit(true, false, false, false);
+        emit Raffle.WinnerPicked(testUser2);
+
+        VRFCoordinatorV2_5Mock(networkConfig.vrfCoordinatorAddress).fulfillRandomWordsWithOverride(
+            reqId,
+            address(raffle),
+            randomWords
+        );
+    }
+
+    function testWinnerSelectionLogic() external {
+        uint256 amountToInvest = raffle.getEntranceFeeAmountInEth();
+        
+        // Setup participants
+        vm.deal(testUser, 1 ether);
+        vm.prank(testUser);
+        raffle.enterRaffle{value: amountToInvest}();
+
+        address testUser2 = makeAddr("TestUser2");
+        vm.deal(testUser2, 1 ether);
+        vm.prank(testUser2);
+        raffle.enterRaffle{value: amountToInvest}();
+
+        uint256 reqId = raffle.runLottery();
+
+        // Create predetermined random number to test winner selection
+        uint256[] memory randomWords = new uint256[](2);
+        randomWords[0] = 1; // This should select the second participant
+        randomWords[1] = 1;
+
+        vm.recordLogs();
+        VRFCoordinatorV2_5Mock(networkConfig.vrfCoordinatorAddress).fulfillRandomWordsWithOverride(
+            reqId,
+            address(raffle),
+            randomWords
+        );
+
+        // Get the winner from the emitted event
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        bytes32 expectedEventSignature = keccak256("WinnerPicked(address)");
+        
+        address actualWinner;
+        for (uint i = 0; i < entries.length; i++) {
+            if (entries[i].topics[0] == expectedEventSignature) {
+                actualWinner = address(uint160(uint256(entries[i].topics[1])));
+                break;
+            }
+        }
+
+        // Since randomWords[0] = 1, the second participant (testUser2) should be the winner
+        assertEq(actualWinner, testUser2, "Winner selection logic failed");
+    }
+    
+    function testWinnerTransferFailureReverts() external {
+        uint256 amountToInvest = raffle.getEntranceFeeAmountInEth();
+        
+        // Create a malicious contract that rejects payments
+        MaliciousContract maliciousContract = new MaliciousContract();
+        
+        // Setup participants
+        vm.deal(address(maliciousContract), 1 ether);
+        vm.prank(address(maliciousContract));
+        raffle.enterRaffle{value: amountToInvest}();
+
+        vm.deal(testUser, 1 ether);
+        vm.prank(testUser);
+        raffle.enterRaffle{value: amountToInvest}();
+
+        uint256 reqId = raffle.runLottery();
+
+        // Mock the random number to select the malicious contract as winner
+        uint256[] memory randomWords = new uint256[](2);
+        randomWords[0] = 0; // This will select the first participant (malicious contract)
+        randomWords[1] = 0;
+        VRFCoordinatorV2_5Mock(networkConfig.vrfCoordinatorAddress).fulfillRandomWordsWithOverride(
+            reqId,
+            address(raffle),
+            randomWords
+        );
+
+        // Check current state should be open
+        /************ Major security issue if payment sending the winner fails the contract will be stuct in calculating state */
+        assertEq(raffle.getCurrentStateOfRaffle(), uint256(Raffle.RaffleState.CALCULATING));
+
+        // Check contract balance should not be zero
+        assertGt(address(raffle).balance, 0);
+
 
     }
 
 
+    // To do 
+        // Deploy script test functions
+        // HelperConfig script test functions
     
 
 }
