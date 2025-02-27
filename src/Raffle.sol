@@ -40,7 +40,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     
     /* Events */
     event RandomNumberRequested(uint256 indexed reqId);
-    event winnerPicked(address indexed winnderAddress);
+    event WinnerPicked(address indexed winnderAddress);
 
     constructor(uint256 _entranceFee, address vrfCoordinatorAddress, uint256 _subscriptionId, bytes32 _keyHash, uint32 _callbackGasLimit) VRFConsumerBaseV2Plus(vrfCoordinatorAddress) {
         i_entranceFee = _entranceFee; 
@@ -122,7 +122,10 @@ contract Raffle is VRFConsumerBaseV2Plus {
             requestConfirmations: REQUEST_CONFIRMATIONS,
             callbackGasLimit: i_callbackGasLimit, 
             numWords: NUM_WORDS,
-            extraArgs: ""
+            extraArgs: VRFV2PlusClient._argsToBytes(
+                    // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
+                    VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
+                )
         })); 
     }
 
@@ -151,19 +154,19 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // Update internal states
         lastWinnerAddress = winnerAddress;
         lastWinnerPrizeAmount = prizeAmount;
-        s_raffleParticipants = new address[](0);
         s_raffleState = RaffleState.OPEN;
         // clear the mapping s_participantToAmount;
         for (uint256 i = 0; i < s_raffleParticipants.length; i++) {
             delete s_participantToAmount[s_raffleParticipants[i]];
         }
+        s_raffleParticipants = new address[](0);
 
         (bool success,) = payable(winnerAddress).call{value: prizeAmount}("");
         if(!success) {
             revert Raffle__Winner_MoneyTransfer_Failed();
         }
 
-        emit winnerPicked(winnerAddress);
+        emit WinnerPicked(winnerAddress);
 
     }
 
@@ -185,6 +188,10 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
     function getCurrentStateOfRaffle() external view returns(uint256) {
         return uint256(s_raffleState);
+    }
+
+    function getSubscriptionId() external view returns(uint256) {
+        return i_subscriptionId;
     }
 
     
