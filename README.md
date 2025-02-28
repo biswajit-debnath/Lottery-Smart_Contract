@@ -1,5 +1,9 @@
 # 🎲 Decentralized Raffle Smart Contract
 
+![Version](https://img.shields.io/github/v/release/biswajit-debnath/raffle-smart-contract)
+![License](https://img.shields.io/github/license/biswajit-debnath/raffle-smart-contract)
+![Build](https://img.shields.io/github/workflow/status/biswajit-debnath/raffle-smart-contract/CI)
+
 A transparent and provably fair lottery system built on Ethereum using Chainlink VRF.
 
 ## Features ⭐
@@ -14,7 +18,7 @@ A transparent and provably fair lottery system built on Ethereum using Chainlink
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/raffle-smart-contract.git
+git clone https://github.com/biswajit-debnath/raffle-smart-contract.git
 
 # Install dependencies
 forge install
