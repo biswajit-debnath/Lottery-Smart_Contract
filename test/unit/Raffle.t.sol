@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.28; 
+pragma solidity 0.8.28; 
 
 import {Test, console, console2} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
@@ -11,16 +11,43 @@ import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VR
 import {MaliciousContract} from "../mock/MaliciousContract.sol";
 
 
+/**
+ * @title RaffleTest
+ * @dev This contract contains unit tests for the Raffle smart contract(Main Contract).
+ * It uses the Foundry framework for testing.
+ * 
+ * The tests cover the following functionalities:
+ * - Entering the raffle with insufficient funds
+ * - Internal state updates after a user enters the raffle
+ * - Contract balance updates after a user enters the raffle
+ * - Single user entering the raffle multiple times
+ * - Reverting when entering the raffle if it is not open
+ * - Running the lottery with no participants
+ * - Running the lottery with only one participant
+ * - Updating the raffle state to CALCULATING after running the lottery
+ * - Reverting when running the lottery if it is not open
+ * - Emitting events after running the lottery
+ * - Winner selection logic and state updates
+ * - Correct winner address emitted in the event
+ * - Handling winner transfer failure
+ * 
+ * The contract uses helper contracts and mocks such as:
+ * - DeployRaffle: For deploying the Raffle contract
+ * - HelperConfig: For getting network configuration
+ * - VRFCoordinatorV2_5Mock: For mocking VRF Coordinator responses
+ * - MaliciousContract: For testing failure scenarios
+ * 
+ * Events:
+ * - Raffle.RandomNumberRequested: Emitted when a random number is requested
+ * - Raffle.WinnerPicked: Emitted when a winner is picked
+ */
 contract RaffleTest is Test {
     Raffle raffle;
     HelperConfig helperConfig;
     DeployRaffle deployer;
     HelperConfig.NetworkConfig networkConfig;
     uint256 constant ENTRANCE_FEE = 5e15;
-    // address constant VRF_COORDINATOR_ADDRESS = 0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B; // Sepolia testnet
     address testUser = makeAddr("User");
-
-     event RandomNumberRequested(uint256 indexed reqId);
 
 
     function setUp() external {
@@ -103,7 +130,7 @@ contract RaffleTest is Test {
         address testUser3 = makeAddr("TestUser3");
         vm.deal(testUser3, 1 ether);
         vm.prank(testUser3);
-        vm.expectRevert(Raffle.Raffle_RaffleNotOpen.selector);
+        vm.expectRevert(Raffle.Raffle__RaffleNotOpen.selector);
         raffle.enterRaffle{value: amountToInvest}();
     }
 
@@ -171,7 +198,7 @@ contract RaffleTest is Test {
 
        
         vm.expectEmit(true, false, false, false, 1);
-        emit RandomNumberRequested(1);
+        emit Raffle.RandomNumberRequested(1);
         raffle.runLottery();
     }
 
@@ -380,11 +407,6 @@ contract RaffleTest is Test {
 
 
     }
-
-
-    // To do 
-        // Deploy script test functions
-        // HelperConfig script test functions
     
 
 }
