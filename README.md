@@ -2,7 +2,7 @@
 
 ![Version](https://img.shields.io/github/v/release/biswajit-debnath/Lottery-Smart_Contract)
 ![License](https://img.shields.io/github/license/biswajit-debnath/Lottery-Smart_Contract)
-![Build](https://img.shields.io/github/actions/workflow/status/biswajit-debnath/Lottery-Smart_Contract/test.yml)
+![Build](https://img.shields.io/github/actions/workflow/status/biswajit-debnath/Lottery-Smart_Contract/test.yml?branch=release/v1.0.0)
 
 A transparent and provably fair lottery system built on Ethereum using Chainlink VRF.
 
