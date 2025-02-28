@@ -46,7 +46,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on contributing.
 
 ## License 📄
 
-MIT License - see [LICENSE.md](LICENSE.md)
+MIT License
 
 ## Contact 📧
 
