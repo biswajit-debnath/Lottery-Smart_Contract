@@ -2,7 +2,7 @@
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 /**
  * @title Raffle Contract
@@ -22,11 +22,13 @@ contract Raffle is VRFConsumerBaseV2Plus {
     error Raffle__NotEnoughEtherToEnterRaffle();
     error Raffle__Not_Ready_To_Start();
     error Raffle__Winner_MoneyTransfer_Failed();
-    error Raffle_RaffleNotOpen();
+    error Raffle__RaffleNotOpen();
+    error Raffle__VRFRequestFailed();
 
     /* State variables */
     uint32 constant NUM_WORDS = 2;
     uint16 constant REQUEST_CONFIRMATIONS = 3;
+    
     uint256 private immutable i_entranceFee;
     uint256 private immutable i_subscriptionId;
     bytes32 private immutable i_keyHash;
@@ -64,7 +66,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
         }
 
         if(s_raffleState != RaffleState.OPEN) {
-            revert Raffle_RaffleNotOpen();
+            revert Raffle__RaffleNotOpen();
         }
 
         // Effect: Add the user to the list of participants
@@ -116,7 +118,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * @return requestId The ID of the request for random words.
      */
     function _requestRandomNumber() internal returns(uint256 requestId) {
-        requestId = s_vrfCoordinator.requestRandomWords(VRFV2PlusClient.RandomWordsRequest({
+        try s_vrfCoordinator.requestRandomWords(VRFV2PlusClient.RandomWordsRequest({
             keyHash: i_keyHash,
             subId: i_subscriptionId,
             requestConfirmations: REQUEST_CONFIRMATIONS,
@@ -126,7 +128,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
                     // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
                     VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
                 )
-        })); 
+        })) returns (uint256 _requestId) {
+            return _requestId;
+        } catch {
+            revert Raffle__VRFRequestFailed();
+        }
     }
 
     /**
@@ -194,5 +200,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
         return i_subscriptionId;
     }
 
-    
+    function getLastWinner() external view returns(address) {
+        return lastWinnerAddress;
+    }
+
+    function getLastWinnersPrizeAmount() external view returns(uint256) {
+        return lastWinnerPrizeAmount;
+    }
 }
