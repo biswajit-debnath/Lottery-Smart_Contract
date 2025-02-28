@@ -35,7 +35,7 @@ forge script script/DeployRaffle.s.sol
 
 ## Security 🔒
 
-- Audited by: [Biswajit Debnath]
+- Audited by: Biswajit Debnath
 - Built with security-first approach
 - Uses Chainlink VRF for randomness
 - Implements reentrancy guards
@@ -50,4 +50,4 @@ MIT License - see [LICENSE.md](LICENSE.md)
 
 ## Contact 📧
 
-- Email: [biswajitdebnath405@gmail.com]
+- Email: biswajitdebnath405@gmail.com
